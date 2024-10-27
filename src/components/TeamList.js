@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
@@ -23,6 +23,14 @@ export default function TeamList() {
   const { currentUser } = useContext(AuthContext);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate(); // Initialize useNavigate
+
+  useEffect(() => {
+    // Redirect to login if not authenticated
+    if (!currentUser) {
+      navigate("/login"); // Redirect to login page
+    }
+  }, [currentUser, navigate]); // Add navigate to dependency array
 
   useEffect(() => {
     const fetchTeams = async () => {
@@ -35,15 +43,18 @@ export default function TeamList() {
           id: doc.id,
           ...team,
           isFull: team.size >= team.maxSize,
-          hasRequested: team.pendingRequests?.includes(currentUser?.uid) || false
+          hasRequested: team.pendingRequests?.includes(currentUser?.uid) || false,
+          joined: team.members?.some(member => member.id === currentUser.uid) || false // Check if the user is a member
         };
       });
       setTeams(teamsData);
       setLoading(false);
     };
 
-    fetchTeams();
-  }, [currentUser]);
+    if (currentUser) {
+      fetchTeams(); // Only fetch teams if the user is logged in
+    }
+  }, [currentUser]); // Fetch teams only when currentUser changes
 
   const filteredTeams = teams.filter(team =>
     team.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -72,23 +83,29 @@ export default function TeamList() {
       return;
     }
 
-    // Immediately add the applicant if there's space in the team
+    if (teamToJoin.joined) {
+      alert("You are already a member of this team.");
+      return; // Prevent joining if the user is already a member
+    }
+
     const newSize = teamToJoin.size + 1;
-    const newTeamData = {
+    
+    // Update the team data with user ID and display name
+    const updatedTeam = {
       ...teamToJoin,
       size: newSize,
-      requestStatus: "You have been added to the team!",
-      hasRequested: true
+      members: [...teamToJoin.members, { id: currentUser.uid, name: currentUser.displayName }], // Store as objects
+      joined: true,
+      hasRequested: true,
     };
 
     setTeams(prevTeams =>
-      prevTeams.map(team => (team.id === teamId ? newTeamData : team))
+      prevTeams.map(team => (team.id === teamId ? updatedTeam : team))
     );
 
     try {
-      await updateTeamInFirestore(teamId, newSize, currentUser.uid);
+      await updateTeamInFirestore(teamId, newSize, currentUser.uid, currentUser.displayName); // Pass display name for Firestore
 
-      // Send email notification to the team owner
       await sendEmail(
         teamToJoin.ownerEmail,
         "New Team Member Added",
@@ -104,12 +121,12 @@ export default function TeamList() {
     }
   };
 
-  const updateTeamInFirestore = async (teamId, newSize, userId) => {
+  const updateTeamInFirestore = async (teamId, newSize, userId, userName) => {
     const db = getFirestore();
     const teamRef = doc(db, "teams", teamId);
     await updateDoc(teamRef, {
       size: newSize,
-      members: arrayUnion(userId) // Add the new member to the team
+      members: arrayUnion({ id: userId, name: userName }) // Add user ID and name to the Firestore members array
     });
   };
 
@@ -155,11 +172,15 @@ export default function TeamList() {
                 <CardContent>
                   <p className="text-black-600">{team.description}</p>
                   <p className="text-sm text-black-400 mt-2">{formatTimestamp(team.createdAt)}</p>
-                  {/* Show team owner's mobile number if the user has joined */}
-                  {team.hasRequested && team.members.includes(currentUser.uid) && (
+                  {team.joined && team.phoneNumber && (
                     <p className="mt-2 text-green-600">
-                      <a href={`https://wa.me/${team.ownerPhone}`} target="_blank" rel="noopener noreferrer">
-                        Contact Team Leader: {team.ownerPhone}
+                      <a 
+                        href={`https://wa.me/${team.phoneNumber}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        onClick={(e) => e.stopPropagation()} // Prevents event from bubbling up
+                      >
+                        Contact Team Leader: {team.phoneNumber}
                       </a>
                     </p>
                   )}
@@ -172,10 +193,10 @@ export default function TeamList() {
                 </div>
                 <Button
                   onClick={() => handleJoinTeam(team.id)}
-                  disabled={team.isFull || team.hasRequested}
-                  className={`bg-blue-500 hover:bg-blue-400 disabled:bg-blue-300 ${team.isFull || team.hasRequested ? "cursor-not-allowed" : ""}`}
+                  disabled={team.isFull || team.hasRequested || team.joined}
+                  className={`bg-blue-500 hover:bg-blue-400 disabled:bg-blue-300 ${team.isFull || team.hasRequested || team.joined ? "cursor-not-allowed" : ""}`}
                 >
-                  {team.isFull ? "Team Full" : team.hasRequested ? "Applied" : "Join Team"}
+                  {team.isFull ? "Team Full" : team.joined ? "Joined" : team.hasRequested ? "Applied" : "Join Team"}
                 </Button>
               </CardFooter>
             </Card>

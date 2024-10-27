@@ -54,14 +54,17 @@ const TeamDetails = () => {
             <p className="text-black-600">{team.description}</p>
             <h3 className="text-lg font-semibold mt-4">Team Members:</h3>
             <ul className="list-disc pl-5 mt-2">
-              {team.members && team.members.length > 0 ? (
+              {team.members.length > 0 ? (
                 team.members.map((member) => (
-                  <li key={member.id} className="text-black-600">{member}</li>
+                  <li key={typeof member === 'string' ? member : member.id} className="text-black-600">
+                    {typeof member === 'string' ? member : member.name}
+                  </li>
                 ))
               ) : (
                 <li className="text-black-600">No members in this team yet.</li>
               )}
             </ul>
+
           </CardContent>
           <CardFooter className="flex justify-end">
             <Link to={'/teams'}>

@@ -20,7 +20,7 @@ export default function CreateTeam() {
     const theme = useTheme();
     const navigate = useNavigate();
     const auth = getAuth();
-    const db = getFirestore(); // Initialize Firestore
+    const db = getFirestore();
     const [user, setUser] = useState(null);
 
     const [teamData, setTeamData] = useState({
@@ -29,7 +29,8 @@ export default function CreateTeam() {
         maxSize: '5',
         tags: '',
         members: [''],
-        lead: '', // New state for Team Lead
+        lead: '',
+        phoneNumber: '',
         size: 1,
     });
 
@@ -65,7 +66,7 @@ export default function CreateTeam() {
         setTeamData(prevData => ({
             ...prevData,
             members: updatedMembers,
-            currenSize: updatedMembers.length
+            size: updatedMembers.length
         }));
     };
 
@@ -73,7 +74,7 @@ export default function CreateTeam() {
         setTeamData(prevData => ({
             ...prevData,
             members: [...prevData.members, ''],
-            currenSize: prevData.currenSize + 1
+            size: prevData.size + 1
         }));
     };
 
@@ -82,7 +83,7 @@ export default function CreateTeam() {
         setTeamData(prevData => ({
             ...prevData,
             members: updatedMembers,
-            currenSize: updatedMembers.length
+            size: updatedMembers.length
         }));
     };
 
@@ -94,7 +95,7 @@ export default function CreateTeam() {
                 ...teamData,
                 createdBy: user.uid,
                 createdAt: new Date(),
-                ownerEmail: user.email, // Store user's email here
+                ownerEmail: user.email,
             });
             console.log('Team created:', teamData);
             navigate('/teams');
@@ -155,6 +156,18 @@ export default function CreateTeam() {
                                     value={teamData.lead}
                                     onChange={handleInputChange}
                                     placeholder="Enter team lead name"
+                                    className="bg-gray-100 text-gray-800"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="phoneNumber" className="text-gray-800">Team Owner's Phone Number</Label>
+                                <Input
+                                    id="phoneNumber"
+                                    name="phoneNumber"
+                                    value={teamData.phoneNumber}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter your phone number"
                                     className="bg-gray-100 text-gray-800"
                                     required
                                 />
