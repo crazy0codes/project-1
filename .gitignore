@@ -8,7 +8,7 @@ Mini project.zip
 
 # testing
 /coverage
-
+.env
 # production
 /build
 
